@@ -29,3 +29,6 @@ def test_create_and_list_tasks(client):
 def test_create_user(client):
     resp = client.post("/users", json={"username": "bob", "password": "s3cret"})
     assert resp.status_code == 201
+
+def test_echec_volontaire():
+    assert 1 == 1
