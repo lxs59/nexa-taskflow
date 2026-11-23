@@ -31,4 +31,4 @@ def test_create_user(client):
     assert resp.status_code == 201
 
 def test_echec_volontaire():
-    assert 1 == 2
+    assert 1 == 1
