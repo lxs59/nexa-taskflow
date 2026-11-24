@@ -28,3 +28,38 @@ jobs:
 
       - name: Lancer les tests
         run: python -m pytest
+
+  sast:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Recuperer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Installer Semgrep
+        run: pip install semgrep
+
+      - name: Analyse SAST
+        run: |
+          semgrep scan --config p/default --config p/python --config .semgrep.yml --severity ERROR --error app/
+
+  secrets:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Recuperer le code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Analyse des secrets
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/repo" \
+            ghcr.io/gitleaks/gitleaks:v8.30.1 \
+            git /repo --log-opts="--all" --redact --exit-code 1
