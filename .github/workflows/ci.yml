@@ -63,3 +63,23 @@ jobs:
             -v "${{ github.workspace }}:/repo" \
             ghcr.io/gitleaks/gitleaks:v8.30.1 \
             git /repo --log-opts="--all" --redact --exit-code 1
+  
+
+  trivy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t taskflow:tp3 .
+
+      - name: Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: 'taskflow:tp3'
+          format: 'table'
+          exit-code: '1'
+          severity: 'HIGH,CRITICAL'
+          scanners: 'vuln'
+          trivyignores: '.trivyignore'

@@ -1,0 +1,9 @@
+# Date : 2026-11-24
+# Projet : TaskFlow
+# Responsable : mainteneur du projet
+#
+# Les vulnerabilites restantes concernent les paquets Debian.
+# L'image utilise une base slim et un utilisateur non-root.
+# Les vulnerabilites sans correctif restent sous surveillance.
+# Aucune CVE n'est ignoree sans justification individuelle.
+# Date de reevaluation : 2026-12-01
