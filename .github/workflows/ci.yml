@@ -75,8 +75,8 @@ jobs:
         run: docker build -t taskflow:tp3 .
 
       - name: Trivy vulnerability scan
-        uses: aquasecurity/trivy-action@0.33.1
-        with:
+        
+        with:uses: aquasecurity/trivy-action@v0.36.0
           image-ref: 'taskflow:tp3'
           format: 'table'
           exit-code: '1'
