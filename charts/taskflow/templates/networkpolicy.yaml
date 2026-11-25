@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-taskflow
+  namespace: taskflow
+spec:
+  podSelector:
+    matchLabels:
+      app: {{ .Release.Name }}-taskflow
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 8085
+  egress: []

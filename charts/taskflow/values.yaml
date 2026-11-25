@@ -2,14 +2,29 @@ replicaCount: 2
 
 image:
   repository: nexa/taskflow
-  tag: latest
+  tag: "1.0.0"
 
 service:
-  type: LoadBalancer
+  type: ClusterIP
   port: 80
 
 securityContext:
-  runAsUser: 0
-  allowPrivilegeEscalation: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  runAsNonRoot: true
+  privileged: false
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+  seccompProfile:
+    type: RuntimeDefault
 
-resources: {}
+resources:
+  requests:
+    cpu: "100m"
+    memory: "128Mi"
+  limits:
+    cpu: "500m"
+    memory: "256Mi"

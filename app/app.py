@@ -1,14 +1,15 @@
+
 """TaskFlow API — projet fil rouge du module DevSecOps.
 
 ATTENTION : cette application contient VOLONTAIREMENT des failles de sécurité
 à des fins pédagogiques. Ne jamais la déployer sur un environnement réel.
 """
-import hashlib
 import pickle
 import sqlite3
 import subprocess
 
 from flask import Flask, jsonify, request
+from werkzeug.security import generate_password_hash
 
 from app.config import DATABASE, PAYMENT_API_KEY
 
@@ -44,8 +45,10 @@ def health():
 def list_tasks():
     owner = request.args.get("owner", "")
     conn = get_db()
-    # Requête construite par concaténation
-    rows = conn.execute("SELECT * FROM tasks WHERE owner = '" + owner + "'").fetchall()
+    # Correction : requête SQL paramétrée
+    rows = conn.execute(
+        "SELECT * FROM tasks WHERE owner = ?", (owner,)
+    ).fetchall()
     conn.close()
     return jsonify([dict(r) for r in rows])
 
@@ -67,7 +70,10 @@ def create_task():
 @app.route("/users", methods=["POST"])
 def create_user():
     data = request.get_json(force=True)
-    password_hash = hashlib.md5(data.get("password", "").encode()).hexdigest()
+    # Correction : hachage sécurisé avec pbkdf2
+    password_hash = generate_password_hash(
+        data.get("password", ""), method="pbkdf2:sha256:600000"
+    )
     conn = get_db()
     conn.execute(
         "INSERT INTO users (username, password) VALUES (?, ?)",

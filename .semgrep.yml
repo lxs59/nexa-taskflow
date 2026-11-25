@@ -1,0 +1,11 @@
+
+rules:
+  - id: taskflow-insecure-pickle
+    message: "Deserialisation non securisee : utiliser JSON plutot que pickle.loads."
+    severity: ERROR
+    languages:
+      - python
+    pattern: pickle.loads(...)
+    metadata:
+      category: security
+      cwe: "CWE-502"

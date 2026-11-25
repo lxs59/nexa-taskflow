@@ -1,4 +1,3 @@
-
 name: CI
 
 on:
@@ -28,3 +27,153 @@ jobs:
 
       - name: Lancer les tests
         run: python -m pytest
+
+  sast:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Recuperer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Installer Semgrep
+        run: pip install semgrep
+
+      - name: Analyse SAST
+        run: |
+          semgrep scan --config p/default --config p/python --config .semgrep.yml --severity ERROR --error app/
+
+  secrets:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Recuperer le code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Analyse des secrets
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/repo" \
+            ghcr.io/gitleaks/gitleaks:v8.30.1 \
+            git /repo --log-opts="--all" --redact --exit-code 1
+
+  trivy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Recuperer le code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t taskflow:tp3 .
+
+      - name: Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: 'taskflow:tp3'
+          format: 'table'
+          exit-code: '1'
+          severity: 'HIGH,CRITICAL'
+          scanners: 'vuln'
+          trivyignores: '.trivyignore'
+
+  iac:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Recuperer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Installer Helm
+        uses: azure/setup-helm@v4
+
+      - name: Installer Checkov
+        run: pip install checkov==3.4.11
+
+      - name: Analyse Terraform
+        run: checkov -d infra/ --framework terraform --compact
+
+      - name: Analyse Kubernetes
+        run: checkov -d k8s/ --framework kubernetes --compact
+
+      - name: Analyse Helm
+        run: checkov -d charts/taskflow --framework helm --compact
+
+  zap:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Recuperer le code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t taskflow:tp5 .
+
+      - name: Lancer TaskFlow
+        run: |
+          docker run -d --name taskflow -p 8085:8085 taskflow:tp5
+
+      - name: Verifier TaskFlow
+        run: |
+          curl --retry 15 --retry-delay 2 --retry-all-errors --max-time 5 --fail http://localhost:8085/health || {
+            docker logs taskflow
+            exit 1
+          }
+          
+      - name: Analyse ZAP baseline
+        run: |
+          mkdir -p zap-results
+          chmod 777 zap-results
+          docker run --rm --network host \
+            -v "${{ github.workspace }}/zap-results:/zap/wrk/:rw" \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py \
+            -t http://localhost:8085 \
+            -r zap-report.html \
+            -I
+
+      - name: Archiver le rapport ZAP
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-report
+          path: zap-results/zap-report.html
+
+      - name: Arreter TaskFlow
+        if: always()
+        run: docker rm -f taskflow
+
+  sbom:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Recuperer le code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t taskflow:tp5 .
+
+      - name: Generer le SBOM avec Syft
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            anchore/syft:latest \
+            docker:taskflow:tp5 \
+            -o cyclonedx-json > sbom.json
+
+      - name: Archiver le SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx
+          path: sbom.json
