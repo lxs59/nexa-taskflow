@@ -82,3 +82,30 @@ jobs:
           severity: 'HIGH,CRITICAL'
           scanners: 'vuln'
           trivyignores: '.trivyignore'
+
+  iac:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Recuperer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Installer Helm
+        uses: azure/setup-helm@v4
+
+      - name: Installer Checkov
+        run: pip install checkov==3.4.11
+
+      - name: Analyse Terraform
+        run: checkov -d infra/ --framework terraform --compact
+
+      - name: Analyse Kubernetes
+        run: checkov -d k8s/ --framework kubernetes --compact
+
+      - name: Analyse Helm
+        run: checkov -d charts/taskflow --framework helm --compact

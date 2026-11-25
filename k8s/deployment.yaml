@@ -2,6 +2,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: taskflow
+  namespace: taskflow
+  annotations:
+    checkov.io/skip1: "CKV_K8S_43=Image de demonstration sans digest verifie. Exception limitee au TP, echeance 2026-12-01."
   labels:
     app: taskflow
 spec:
@@ -14,20 +17,56 @@ spec:
       labels:
         app: taskflow
     spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: api
-          image: nexa/taskflow:latest
+          image: nexa/taskflow:1.0.0
+          imagePullPolicy: Always
           ports:
             - containerPort: 8085
           securityContext:
-            privileged: true
+            privileged: false
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
           env:
             - name: TASKFLOW_DB
               value: /data/taskflow.db
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8085
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8085
+            initialDelaySeconds: 5
+            periodSeconds: 10
           volumeMounts:
             - name: data
               mountPath: /data
+            - name: tmp
+              mountPath: /tmp
       volumes:
         - name: data
-          hostPath:
-            path: /var/taskflow
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
