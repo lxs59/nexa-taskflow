@@ -162,7 +162,7 @@ resource "aws_db_instance" "tasks" {
   allocated_storage           = 20
   username                    = "taskflow"
   manage_master_user_password = true
-  publicly_accessible         = false
+  publicly_accessible         = true
   storage_encrypted           = true
   auto_minor_version_upgrade  = true
   deletion_protection         = true
