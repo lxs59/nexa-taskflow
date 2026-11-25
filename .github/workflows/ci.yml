@@ -109,3 +109,68 @@ jobs:
 
       - name: Analyse Helm
         run: checkov -d charts/taskflow --framework helm --compact
+
+  zap:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Recuperer le code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t taskflow:tp5 .
+
+      - name: Lancer TaskFlow
+        run: |
+          docker run -d --name taskflow -p 8085:8085 taskflow:tp5
+
+      - name: Verifier TaskFlow
+        run: |
+          curl --retry 15 --retry-delay 2 --retry-connrefused --fail http://localhost:8085/health
+
+      - name: Analyse ZAP baseline
+        run: |
+          mkdir -p zap-results
+          chmod 777 zap-results
+          docker run --rm --network host \
+            -v "${{ github.workspace }}/zap-results:/zap/wrk/:rw" \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py \
+            -t http://localhost:8085 \
+            -r zap-report.html \
+            -I
+
+      - name: Archiver le rapport ZAP
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-report
+          path: zap-results/zap-report.html
+
+      - name: Arreter TaskFlow
+        if: always()
+        run: docker rm -f taskflow
+
+  sbom:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Recuperer le code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t taskflow:tp5 .
+
+      - name: Generer le SBOM avec Syft
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            anchore/syft:latest \
+            docker:taskflow:tp5 \
+            -o cyclonedx-json > sbom.json
+
+      - name: Archiver le SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx
+          path: sbom.json
